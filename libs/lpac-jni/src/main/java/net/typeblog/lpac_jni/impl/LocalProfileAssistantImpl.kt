@@ -217,12 +217,24 @@ class LocalProfileAssistantImpl(
     }
 
     override fun downloadProfile(input: ProfileDownloadInput, callback: ProfileDownloadCallback) = lock.withLock {
+        if (input.mnoAddress.isBlank() || input.pcaAddress.isBlank()) {
+            throw LocalProfileAssistant.ProfileDownloadException(
+                lpaErrorReason = "ZK_SERVER_ADDRESS_MISSING",
+                httpInterface.lastHttpResponse,
+                httpInterface.lastHttpException,
+                apduInterface.lastApduResponse,
+                apduInterface.lastApduException,
+            )
+        }
+
         val res = LpacJni.downloadProfile(
             contextHandle,
             input.address,
             input.matchingId,
             input.imei,
             input.confirmationCode,
+            input.mnoAddress,
+            input.pcaAddress,
             callback
         )
 
@@ -236,8 +248,10 @@ class LocalProfileAssistantImpl(
                 apduInterface.lastApduException,
             )
 
-            // Cancel sessions if possible. This will overwrite recorded errors from HTTP and APDU interfaces.
-            LpacJni.cancelSessions(contextHandle)
+            // Cancel only after the final ES9+/ES10 download session has actually started.
+            if (LpacJni.downloadNeedsCancel(contextHandle)) {
+                LpacJni.cancelSessions(contextHandle)
+            }
 
             throw err
         }

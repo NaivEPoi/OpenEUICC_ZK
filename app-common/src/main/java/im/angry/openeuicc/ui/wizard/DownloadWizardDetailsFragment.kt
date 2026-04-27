@@ -102,7 +102,6 @@ class DownloadWizardDetailsFragment : DownloadWizardActivity.DownloadWizardStepF
 }
 
 private fun isValidAddress(input: CharSequence): Boolean {
-    if (!input.contains('.')) return false
     var fqdn = input
     var port = 443
     if (input.contains(':')) {

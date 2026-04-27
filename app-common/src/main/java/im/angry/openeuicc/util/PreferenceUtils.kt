@@ -40,12 +40,25 @@ internal object PreferenceKeys {
     val IGNORE_TLS_CERTIFICATE = booleanPreferencesKey("ignore_tls_certificate")
     val ISDR_AID_LIST = stringPreferencesKey("isdr_aid_list")
     val ES10X_MSS = intPreferencesKey("es10x_mss")
+    val ZK_MNO_ADDRESS = stringPreferencesKey("zk_mno_address")
+    val ZK_PCA_ADDRESS = stringPreferencesKey("zk_pca_address")
 }
 
 const val EUICC_DEFAULT_ISDR_AID = "A0000005591010FFFFFFFF8900000100"
+const val ZK_ESIM_ISDR_AID = "D07002CA44900101"
+const val ZK_ESIM_DEFAULT_MNO_ADDRESS = "localhost:4443"
+const val ZK_ESIM_DEFAULT_PCA_ADDRESS = "localhost:5443"
+
+private fun normalizeIsdrAidList(value: String): String {
+    val filtered = value.lines()
+        .filterNot { it.trim().equals(ZK_ESIM_ISDR_AID, ignoreCase = true) }
+        .joinToString("\n")
+        .trimStart()
+    return "# ZK-eSIM applet\n$ZK_ESIM_ISDR_AID\n\n$filtered".trimEnd()
+}
 
 internal object PreferenceConstants {
-    val DEFAULT_AID_LIST = """
+    val DEFAULT_AID_LIST = normalizeIsdrAidList("""
         # One AID per line. Comment lines start with #.
         # Refs: <https://euicc-manual.osmocom.org/docs/lpa/applet-id-oem/>
 
@@ -75,7 +88,7 @@ internal object PreferenceConstants {
 
         # ESTKme AUX (deprecated, use SE0 instead)
         A06573746B6D65FFFFFFFF4953442D52
-    """.trimIndent()
+    """.trimIndent())
 }
 
 open class PreferenceRepository(private val context: Context) {
@@ -98,9 +111,11 @@ open class PreferenceRepository(private val context: Context) {
     val isdrAidListFlow = bindFlow(
         PreferenceKeys.ISDR_AID_LIST,
         PreferenceConstants.DEFAULT_AID_LIST,
-        { Base64.getEncoder().encodeToString(it.encodeToByteArray()) },
-        { Base64.getDecoder().decode(it).decodeToString() })
+        { Base64.getEncoder().encodeToString(normalizeIsdrAidList(it).encodeToByteArray()) },
+        { normalizeIsdrAidList(Base64.getDecoder().decode(it).decodeToString()) })
     val es10xMssFlow = bindFlow(PreferenceKeys.ES10X_MSS, 63)
+    val zkMnoAddressFlow = bindFlow(PreferenceKeys.ZK_MNO_ADDRESS, ZK_ESIM_DEFAULT_MNO_ADDRESS)
+    val zkPcaAddressFlow = bindFlow(PreferenceKeys.ZK_PCA_ADDRESS, ZK_ESIM_DEFAULT_PCA_ADDRESS)
 
     protected fun <T> bindFlow(
         key: Preferences.Key<T>,

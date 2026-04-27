@@ -81,6 +81,20 @@
             app:summary="@string/pref_developer_ignore_tls_certificate_desc"
             app:title="@string/pref_developer_ignore_tls_certificate" />
 
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="pref_developer_zk_mno_address"
+            app:summary="@string/pref_developer_zk_mno_address_desc"
+            app:title="@string/pref_developer_zk_mno_address"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="pref_developer_zk_pca_address"
+            app:summary="@string/pref_developer_zk_pca_address_desc"
+            app:title="@string/pref_developer_zk_pca_address"
+            app:useSimpleSummaryProvider="true" />
+
         <ListPreference
             app:entries="@array/pref_developer_es10x_entry_keys"
             app:entryValues="@array/pref_developer_es10x_entry_values"

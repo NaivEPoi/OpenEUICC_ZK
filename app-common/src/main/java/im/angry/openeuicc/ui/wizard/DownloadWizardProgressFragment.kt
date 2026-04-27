@@ -16,6 +16,7 @@ import im.angry.openeuicc.common.R
 import im.angry.openeuicc.service.EuiccChannelManagerService
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import net.typeblog.lpac_jni.ProfileDownloadInput
@@ -153,9 +154,19 @@ class DownloadWizardProgressFragment : DownloadWizardActivity.DownloadWizardStep
             // Set started to true even before we start -- in case we get killed in the middle
             state.downloadStarted = true
 
+            val mnoAddress = preferenceRepository.zkMnoAddressFlow.first()
+            val pcaAddress = preferenceRepository.zkPcaAddressFlow.first()
+
             val ret = euiccChannelManagerService.launchProfileDownloadTask(
                 slotId, portId, seId,
-                ProfileDownloadInput(state.smdp, state.matchingId, state.imei, state.confirmationCode)
+                ProfileDownloadInput(
+                    state.smdp,
+                    state.matchingId,
+                    state.imei,
+                    state.confirmationCode,
+                    mnoAddress,
+                    pcaAddress
+                )
             )
 
             state.downloadTaskID = ret.taskId
@@ -168,6 +179,9 @@ class DownloadWizardProgressFragment : DownloadWizardActivity.DownloadWizardStep
         showProgressBar(progress)
 
         val stateIndex = when (state) {
+            is ProfileDownloadState.Registering -> 0
+            is ProfileDownloadState.CertInitializing -> 1
+            is ProfileDownloadState.Ordering -> 2
             is ProfileDownloadState.Preparing -> 0
             is ProfileDownloadState.Connecting -> 1
             is ProfileDownloadState.Authenticating -> 2

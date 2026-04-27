@@ -25,6 +25,9 @@ val List<LocalProfileInfo>.enabled: LocalProfileInfo?
 
 val ProfileDownloadState.downloadProgress: Int
     get() = when (this) {
+        is ProfileDownloadState.Registering -> 0
+        is ProfileDownloadState.CertInitializing -> 20
+        is ProfileDownloadState.Ordering -> 40
         is ProfileDownloadState.Preparing -> 0
         is ProfileDownloadState.Connecting -> 20
         is ProfileDownloadState.Authenticating -> 40

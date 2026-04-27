@@ -1,6 +1,9 @@
 package net.typeblog.lpac_jni
 
 sealed class ProfileDownloadState {
+    class Registering : ProfileDownloadState()
+    class CertInitializing : ProfileDownloadState()
+    class Ordering : ProfileDownloadState()
     class Preparing : ProfileDownloadState()
     class Connecting : ProfileDownloadState()
     class Authenticating : ProfileDownloadState()

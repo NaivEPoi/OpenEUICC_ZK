@@ -4,5 +4,7 @@ data class ProfileDownloadInput(
     val address: String,
     val matchingId: String?,
     val imei: String?,
-    val confirmationCode: String?
+    val confirmationCode: String?,
+    val mnoAddress: String,
+    val pcaAddress: String
 )

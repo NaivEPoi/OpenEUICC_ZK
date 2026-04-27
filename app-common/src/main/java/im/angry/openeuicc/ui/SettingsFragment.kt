@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.CheckBoxPreference
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
@@ -83,6 +84,12 @@ open class SettingsFragment : PreferenceFragmentCompat(), OpenEuiccContextMarker
         requirePreference<CheckBoxPreference>("pref_developer_refresh_after_switch")
             .bindBooleanFlow(preferenceRepository.refreshAfterSwitchFlow)
 
+        requirePreference<EditTextPreference>("pref_developer_zk_mno_address")
+            .bindStringFlow(preferenceRepository.zkMnoAddressFlow)
+
+        requirePreference<EditTextPreference>("pref_developer_zk_pca_address")
+            .bindStringFlow(preferenceRepository.zkPcaAddressFlow)
+
         requirePreference<ListPreference>("pref_developer_es10x_mss")
             .bindIntFlow(preferenceRepository.es10xMssFlow, 63)
 
@@ -153,6 +160,19 @@ open class SettingsFragment : PreferenceFragmentCompat(), OpenEuiccContextMarker
         setOnPreferenceChangeListener { _, newValue ->
             lifecycleScope.launch {
                 flow.updatePreference((newValue as String).toIntOrNull() ?: defaultValue)
+            }
+            true
+        }
+    }
+
+    private fun EditTextPreference.bindStringFlow(flow: PreferenceFlowWrapper<String>) {
+        lifecycleScope.launch {
+            flow.collect { text = it }
+        }
+
+        setOnPreferenceChangeListener { _, newValue ->
+            lifecycleScope.launch {
+                flow.updatePreference((newValue as String).trim())
             }
             true
         }
