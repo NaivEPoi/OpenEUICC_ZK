@@ -17,6 +17,10 @@ internal object LpacJni {
     external fun euiccSetMss(handle: Long, mss: Byte)
     external fun euiccFini(handle: Long)
 
+    // Swap the AID used to open the ISD-R logical channel. Caller must wrap this in
+    // euiccFini → setIsdrAid → euiccInit so the new AID takes effect.
+    external fun setIsdrAid(handle: Long, aid: ByteArray)
+
     // es10c
     // null returns signify errors
     external fun es10cGetEid(handle: Long): String?
@@ -40,6 +44,11 @@ internal object LpacJni {
 
     external fun downloadErrCodeToString(code: Int): String
     external fun handleNotification(handle: Long, seqNumber: Long): Int
+
+    // ZK eSIM flow (es10b_zk_* + es12p_*)
+    external fun zkRegister(handle: Long, mnoAddr: String): Int
+    external fun zkCertInit(handle: Long, pcaAddr: String, sessionKeySeed: ByteArray): Int
+    external fun zkOrder(handle: Long, mnoAddr: String): ZkOrderResult?
 
     // Cancel any ongoing es9p and/or es10b sessions
     external fun downloadNeedsCancel(handle: Long): Boolean

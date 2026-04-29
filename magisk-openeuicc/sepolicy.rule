@@ -1,0 +1,2 @@
+allow system_app system_server binder call
+allow system_app radio_service binder call

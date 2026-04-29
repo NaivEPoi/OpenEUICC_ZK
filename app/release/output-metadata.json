@@ -1,0 +1,20 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "APK",
+    "kind": "Directory"
+  },
+  "applicationId": "im.angry.openeuicc",
+  "variantName": "release",
+  "elements": [
+    {
+      "type": "SINGLE",
+      "filters": [],
+      "attributes": [],
+      "versionCode": 772,
+      "versionName": "v1.6.1-4-g1c70ca7-dirty-priv",
+      "outputFile": "app-release.apk"
+    }
+  ],
+  "elementType": "File"
+}

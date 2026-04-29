@@ -88,7 +88,11 @@
     <string name="download_wizard_method_gallery">Load a QR code from gallery</string>
     <string name="download_wizard_method_clipboard">Load from Clipboard</string>
     <string name="download_wizard_method_manual">Enter manually</string>
+    <string name="download_wizard_method_zk">ZK eSIM download</string>
     <string name="download_wizard_details">Input or confirm details for downloading your eSIM:</string>
+    <string name="download_wizard_zk_details">Enter the MNO and PCA server addresses for the ZK eSIM flow:</string>
+    <string name="profile_download_zk_mno">MNO Server Address</string>
+    <string name="profile_download_zk_pca">PCA Server Address</string>
     <string name="download_wizard_progress">Downloading your eSIM…</string>
     <string name="download_wizard_progress_step_preparing">Registering with MNO</string>
     <string name="download_wizard_progress_step_connecting">Initializing pseudonym certificate</string>

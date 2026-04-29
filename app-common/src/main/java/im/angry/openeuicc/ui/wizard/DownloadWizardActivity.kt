@@ -56,6 +56,9 @@ class DownloadWizardActivity : BaseEuiccAccessActivity() {
         var downloadError: LocalProfileAssistant.ProfileDownloadException?,
         var skipMethodSelect: Boolean,
         var confirmationCodeRequired: Boolean,
+        var useZk: Boolean,
+        var mnoAddress: String,
+        var pcaAddress: String,
     )
 
     private lateinit var state: DownloadWizardState
@@ -95,6 +98,9 @@ class DownloadWizardActivity : BaseEuiccAccessActivity() {
             downloadError = null,
             skipMethodSelect = false,
             confirmationCodeRequired = false,
+            useZk = false,
+            mnoAddress = "",
+            pcaAddress = "",
         )
 
         handleDeepLink()
@@ -171,6 +177,9 @@ class DownloadWizardActivity : BaseEuiccAccessActivity() {
         outState.putBoolean("downloadStarted", state.downloadStarted)
         outState.putLong("downloadTaskID", state.downloadTaskID)
         outState.putBoolean("confirmationCodeRequired", state.confirmationCodeRequired)
+        outState.putBoolean("useZk", state.useZk)
+        outState.putString("mnoAddress", state.mnoAddress)
+        outState.putString("pcaAddress", state.pcaAddress)
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
@@ -193,6 +202,9 @@ class DownloadWizardActivity : BaseEuiccAccessActivity() {
             "confirmationCodeRequired",
             state.confirmationCodeRequired
         )
+        state.useZk = savedInstanceState.getBoolean("useZk", state.useZk)
+        state.mnoAddress = savedInstanceState.getString("mnoAddress", state.mnoAddress)
+        state.pcaAddress = savedInstanceState.getString("pcaAddress", state.pcaAddress)
     }
 
     private fun onPrevPressed() {

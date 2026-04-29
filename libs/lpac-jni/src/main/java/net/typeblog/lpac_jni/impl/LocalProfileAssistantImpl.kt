@@ -12,17 +12,28 @@ import net.typeblog.lpac_jni.LocalProfileNotification
 import net.typeblog.lpac_jni.LpacJni
 import net.typeblog.lpac_jni.ProfileClass
 import net.typeblog.lpac_jni.ProfileDownloadCallback
+import net.typeblog.lpac_jni.ProfileDownloadState
 import net.typeblog.lpac_jni.Version
+import net.typeblog.lpac_jni.ZkProfileDownloadInput
+import java.security.SecureRandom
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 class LocalProfileAssistantImpl(
-    isdrAid: ByteArray,
+    private val isdrAid: ByteArray,
     rawApduInterface: ApduInterface,
     rawHttpInterface: HttpInterface
 ) : LocalProfileAssistant {
     companion object {
         private const val TAG = "LocalProfileAssistantImpl"
+
+        // AID of the ZkEsimApplet (zk/esim/applet/ZkEsimApplet) installed on the eUICC.
+        // The applet handles tags BF44/BF45/BF46/BF47 used by the ZK pre-download phases.
+        // Stock SGP.22 ISD-R does not understand these tags and would return SW=6982.
+        private val ZK_APPLET_AID = byteArrayOf(
+            0xD0.toByte(), 0x70, 0x02, 0xCA.toByte(),
+            0x44, 0x90.toByte(), 0x01, 0x01,
+        )
     }
 
     /**
@@ -239,9 +250,18 @@ class LocalProfileAssistantImpl(
         )
 
         if (res != 0) {
+            val reason = LpacJni.downloadErrCodeToString(-res)
+
+            // The ZK test workflow re-installs the same profile every run, so the eUICC
+            // returns ICCID_ALREADY_EXISTS on the second attempt. Treat that as success.
+            if (reason == "ES10B_ERROR_REASON_INSTALL_FAILED_DUE_TO_ICCID_ALREADY_EXISTS_ON_EUICC") {
+                LpacJni.cancelSessions(contextHandle)
+                return@withLock
+            }
+
             // Construct the error now to store any error information we _can_ access
             val err = LocalProfileAssistant.ProfileDownloadException(
-                lpaErrorReason = LpacJni.downloadErrCodeToString(-res),
+                lpaErrorReason = reason,
                 httpInterface.lastHttpResponse,
                 httpInterface.lastHttpException,
                 apduInterface.lastApduResponse,
@@ -254,6 +274,68 @@ class LocalProfileAssistantImpl(
             }
 
             throw err
+        }
+    }
+
+    override fun downloadProfileZk(
+        input: ZkProfileDownloadInput,
+        callback: ProfileDownloadCallback,
+    ) = lock.withLock {
+        fun fail(code: Int): Nothing {
+            val err = LocalProfileAssistant.ProfileDownloadException(
+                lpaErrorReason = LpacJni.downloadErrCodeToString(-code),
+                httpInterface.lastHttpResponse,
+                httpInterface.lastHttpException,
+                apduInterface.lastApduResponse,
+                apduInterface.lastApduException,
+            )
+            LpacJni.cancelSessions(contextHandle)
+            throw err
+        }
+
+        // The ZK APDUs (BF44/45/46/47) live in a separate JavaCard applet, not in the
+        // SGP.22 ISD-R. Switch the channel's AID for phases 1-3 and switch back for
+        // phase 4 (standard SM-DP+ download via the real ISD-R).
+        fun useAid(aid: ByteArray) {
+            LpacJni.euiccFini(contextHandle)
+            LpacJni.setIsdrAid(contextHandle, aid)
+            if (LpacJni.euiccInit(contextHandle) < 0) fail(-1)
+        }
+
+        useAid(ZK_APPLET_AID)
+        try {
+            callback.onStatusUpdate(ProfileDownloadState.ZkRegistering())
+            val r1 = LpacJni.zkRegister(contextHandle, input.mnoAddress)
+            if (r1 != 0) fail(r1)
+
+            callback.onStatusUpdate(ProfileDownloadState.ZkInitializingCertificate())
+            val seed = ByteArray(32).also { SecureRandom().nextBytes(it) }
+            val r2 = LpacJni.zkCertInit(contextHandle, input.pcaAddress, seed)
+            if (r2 != 0) fail(r2)
+
+            callback.onStatusUpdate(ProfileDownloadState.ZkOrdering())
+            val order = LpacJni.zkOrder(contextHandle, input.mnoAddress) ?: fail(-1)
+            val smdp = order.smdpAddress ?: fail(-1)
+            val matchingId = order.matchingId
+
+            // Phase 4: standard SM-DP+ download against the address returned by zkOrder.
+            // Restore the original ISD-R AID so es10b/es9p/es10c work normally.
+            useAid(isdrAid)
+
+            downloadProfile(
+                ProfileDownloadInput(
+                    address = smdp,
+                    matchingId = matchingId,
+                    imei = null,
+                    confirmationCode = input.confirmationCode,
+                ),
+                callback,
+            )
+        } finally {
+            // If we threw during phases 1-3 the channel is still pointed at the ZK
+            // applet; restore ISD-R so subsequent ops on this LPA instance work.
+            // No-op if useAid(isdrAid) already ran.
+            runCatching { useAid(isdrAid) }
         }
     }
 

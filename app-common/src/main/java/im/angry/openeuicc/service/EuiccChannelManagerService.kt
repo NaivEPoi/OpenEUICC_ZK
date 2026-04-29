@@ -44,6 +44,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import net.typeblog.lpac_jni.ProfileDownloadInput
 import net.typeblog.lpac_jni.ProfileDownloadState
+import net.typeblog.lpac_jni.ZkProfileDownloadInput
 
 /**
  * An Android Service wrapper for EuiccChannelManager.
@@ -428,6 +429,52 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
                                     }
                                 } catch (_: TimeoutCancellationException) {
                                     // Default to cancelling / aborting here if we didn't receive a confirmation signal
+                                    false
+                                }
+                            }
+                        }
+
+                        true
+                    }
+                }
+
+                preferenceRepository.notificationDownloadFlow.first()
+            }
+        }
+
+    fun launchProfileDownloadTaskZk(
+        slotId: Int, portId: Int, seId: EuiccChannel.SecureElementId,
+        input: ZkProfileDownloadInput,
+        confirmationSignal: Channel<Boolean> = Channel<Boolean>(1).apply { trySendBlocking(true) }
+    ): ForegroundTaskSubscriberFlow =
+        launchForegroundTask(
+            getString(R.string.task_profile_download),
+            getString(R.string.task_profile_download_failure),
+            R.drawable.ic_task_sim_card_download
+        ) {
+            euiccChannelManager.beginTrackedOperation(slotId, portId, seId) {
+                euiccChannelManager.withEuiccChannel(slotId, portId, seId) { channel ->
+                    channel.lpa.downloadProfileZk(input) { state ->
+                        val progress = state.downloadProgress
+                        foregroundTaskState.value = ForegroundTaskState.InProgress(
+                            progress,
+                            state
+                        )
+
+                        if (state is ProfileDownloadState.ConfirmingDownload) {
+                            state.metadata?.let { metadata ->
+                                Log.i(
+                                    TAG,
+                                    "Downloading profile provider=${metadata.providerName} name=${metadata.name}"
+                                )
+                            }
+
+                            return@downloadProfileZk runBlocking {
+                                try {
+                                    withTimeout(60 * 1000) {
+                                        confirmationSignal.receive()
+                                    }
+                                } catch (_: TimeoutCancellationException) {
                                     false
                                 }
                             }

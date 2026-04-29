@@ -9,10 +9,12 @@ import im.angry.openeuicc.util.*
 
 class PrivilegedSettingsFragment : SettingsFragment(), PrivilegedEuiccContextMarker {
     private val isSignedWithPlatformKey by lazy {
-        val info = with(requireContext()) {
-            packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
-        }
-        info.javaClass.getMethod("isSignedWithPlatformKey").invoke(info) as Boolean
+        runCatching {
+            val info = with(requireContext()) {
+                packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
+            }
+            info.javaClass.getMethod("isSignedWithPlatformKey").invoke(info) as Boolean
+        }.getOrDefault(false)
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {

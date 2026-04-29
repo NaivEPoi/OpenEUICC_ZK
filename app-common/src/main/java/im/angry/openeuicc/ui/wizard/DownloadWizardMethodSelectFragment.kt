@@ -70,6 +70,10 @@ class DownloadWizardMethodSelectFragment : DownloadWizardActivity.DownloadWizard
         },
         DownloadMethod(R.drawable.ic_edit, R.string.download_wizard_method_manual) {
             gotoNextFragment(DownloadWizardDetailsFragment())
+        },
+        DownloadMethod(R.drawable.ic_edit, R.string.download_wizard_method_zk) {
+            state.useZk = true
+            gotoNextFragment(DownloadWizardZkDetailsFragment())
         }
     )
 
@@ -142,6 +146,7 @@ class DownloadWizardMethodSelectFragment : DownloadWizardActivity.DownloadWizard
             // If the user elected to use another download method, reset the confirmation code flag too
             root.setOnClickListener {
                 state.confirmationCodeRequired = false
+                state.useZk = false
                 item.onClick()
             }
         }

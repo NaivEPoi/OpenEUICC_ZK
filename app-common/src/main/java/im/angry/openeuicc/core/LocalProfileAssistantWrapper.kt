@@ -6,6 +6,7 @@ import net.typeblog.lpac_jni.LocalProfileAssistant
 import net.typeblog.lpac_jni.LocalProfileInfo
 import net.typeblog.lpac_jni.LocalProfileNotification
 import net.typeblog.lpac_jni.ProfileDownloadCallback
+import net.typeblog.lpac_jni.ZkProfileDownloadInput
 
 class LocalProfileAssistantWrapper(orig: LocalProfileAssistant) :
     LocalProfileAssistant {
@@ -43,6 +44,9 @@ class LocalProfileAssistantWrapper(orig: LocalProfileAssistant) :
 
     override fun downloadProfile(input: ProfileDownloadInput, callback: ProfileDownloadCallback) =
         lpa.downloadProfile(input, callback)
+
+    override fun downloadProfileZk(input: ZkProfileDownloadInput, callback: ProfileDownloadCallback) =
+        lpa.downloadProfileZk(input, callback)
 
     override fun deleteNotification(seqNumber: Long): Boolean = lpa.deleteNotification(seqNumber)
 

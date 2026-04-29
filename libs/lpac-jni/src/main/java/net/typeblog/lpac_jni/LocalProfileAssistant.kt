@@ -39,6 +39,8 @@ interface LocalProfileAssistant {
 
     fun downloadProfile(input: ProfileDownloadInput, callback: ProfileDownloadCallback)
 
+    fun downloadProfileZk(input: ZkProfileDownloadInput, callback: ProfileDownloadCallback)
+
     fun deleteNotification(seqNumber: Long): Boolean
     fun handleNotification(seqNumber: Long): Boolean
 

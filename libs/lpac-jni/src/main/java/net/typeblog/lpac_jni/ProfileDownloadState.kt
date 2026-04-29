@@ -10,4 +10,7 @@ sealed class ProfileDownloadState {
     class ConfirmingDownload(val metadata: RemoteProfileInfo?) : ProfileDownloadState()
     class Downloading : ProfileDownloadState()
     class Finalizing : ProfileDownloadState()
+    class ZkRegistering : ProfileDownloadState()
+    class ZkInitializingCertificate : ProfileDownloadState()
+    class ZkOrdering : ProfileDownloadState()
 }

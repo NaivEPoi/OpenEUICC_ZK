@@ -1,0 +1,6 @@
+id=openeuicc
+name=OpenEUICC Privileged
+version=1.0
+versionCode=1
+author=you
+description=Installs OpenEUICC as a privileged app

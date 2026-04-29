@@ -23,18 +23,40 @@ class HttpInterfaceImpl(
 
     private lateinit var trustManagers: Array<TrustManager>
 
+    private fun rewriteTestHostToLoopback(originalUrl: String): String {
+        return try {
+            val u = URL(originalUrl)
+            if (!u.host.endsWith(".example.com")) {
+                originalUrl
+            } else {
+                val portPart = if (u.port != -1) ":${u.port}" else ""
+                val pathAndQuery = u.file.ifEmpty { "" }
+                "${u.protocol}://127.0.0.1$portPart$pathAndQuery"
+            }
+        } catch (_: Exception) {
+            originalUrl
+        }
+    }
+
     override fun transmit(
         url: String,
         tx: ByteArray,
         headers: Array<String>
     ): HttpInterface.HttpResponse {
-        Log.d(TAG, "transmit(url = $url)")
+        // When "Ignore TLS certificate" is on (developer/test mode), redirect any
+        // *.example.com URL to 127.0.0.1. Test SM-DP+/MNO/PCA setups commonly use
+        // those placeholder hostnames; combined with `adb reverse tcp:<port> tcp:<port>`
+        // the request is forwarded to the laptop where the test server is running.
+        val effectiveUrl = if (runBlocking { ignoreTLSCertificateFlow.first() }) {
+            rewriteTestHostToLoopback(url)
+        } else url
+        Log.d(TAG, "transmit(url = $effectiveUrl${if (effectiveUrl != url) " <- rewritten from $url" else ""})")
 
         if (runBlocking { verboseLoggingFlow.first() }) {
             Log.d(TAG, "HTTP tx = ${tx.decodeToString(throwOnInvalidSequence = false)}")
         }
 
-        val parsedUrl = URL(url)
+        val parsedUrl = URL(effectiveUrl)
         if (parsedUrl.protocol != "https") {
             throw IllegalArgumentException("SM-DP+ servers must use the HTTPS protocol")
         }
@@ -49,6 +71,13 @@ class HttpInterfaceImpl(
             }
 
             conn.sslSocketFactory = getSocketFactory()
+            // When the user has enabled "Ignore TLS certificate", also bypass hostname
+            // verification — otherwise URLs whose host (e.g. an IP address typed by the
+            // user) doesn't match the cert's SAN will still throw SSLPeerUnverifiedException
+            // even though the cert chain itself is being skipped.
+            if (runBlocking { ignoreTLSCertificateFlow.first() }) {
+                conn.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }
+            }
             conn.requestMethod = "POST"
             conn.doInput = true
             conn.doOutput = true
@@ -64,16 +93,24 @@ class HttpInterfaceImpl(
 
             Log.d(TAG, "transmit responseCode = ${conn.responseCode}")
 
-            val bytes = conn.inputStream.readBytes().also {
-                if (runBlocking { verboseLoggingFlow.first() }) {
-                    Log.d(
-                        TAG,
-                        "HTTP response body = ${it.decodeToString(throwOnInvalidSequence = false)}"
-                    )
-                }
+            // For non-2xx, HttpURLConnection routes the body to errorStream.
+            // Capture it so we can see backend rejection messages instead of swallowing them.
+            val rcode = conn.responseCode
+            val stream = if (rcode in 200..299) conn.inputStream else conn.errorStream
+            val bytes = stream?.readBytes() ?: ByteArray(0)
+            if (rcode !in 200..299) {
+                Log.w(
+                    TAG,
+                    "HTTP $rcode body = ${bytes.decodeToString(throwOnInvalidSequence = false)}"
+                )
+            } else if (runBlocking { verboseLoggingFlow.first() }) {
+                Log.d(
+                    TAG,
+                    "HTTP response body = ${bytes.decodeToString(throwOnInvalidSequence = false)}"
+                )
             }
 
-            return HttpInterface.HttpResponse(conn.responseCode, bytes)
+            return HttpInterface.HttpResponse(rcode, bytes)
         } catch (e: Exception) {
             e.printStackTrace()
             throw e

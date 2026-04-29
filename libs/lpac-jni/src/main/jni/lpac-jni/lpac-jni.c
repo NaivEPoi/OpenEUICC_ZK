@@ -8,6 +8,7 @@
 #include "lpac-jni.h"
 #include "lpac-download.h"
 #include "lpac-notifications.h"
+#include "lpac-zk.h"
 #include "interface-wrapper.h"
 
 JavaVM *jvm = NULL;
@@ -21,6 +22,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     jvm = vm;
     interface_wrapper_init();
     lpac_download_init();
+    lpac_zk_init();
 
     LPAC_JNI_SETUP_ENV;
     string_class = (*env)->FindClass(env, "java/lang/String");
@@ -94,6 +96,22 @@ Java_net_typeblog_lpac_1jni_LpacJni_euiccSetMss(JNIEnv *env, jobject thiz, jlong
                                                 jbyte mss) {
     struct euicc_ctx *ctx = (struct euicc_ctx *) handle;
     ctx->es10x_mss = (uint8_t) mss;
+}
+
+// Replace ctx->aid (and ctx->aid_len). The caller must call euiccFini before this and
+// euiccInit after, so the new AID is used for the next channel open.
+JNIEXPORT void JNICALL
+Java_net_typeblog_lpac_1jni_LpacJni_setIsdrAid(JNIEnv *env, jobject thiz, jlong handle,
+                                               jbyteArray new_aid) {
+    struct euicc_ctx *ctx = (struct euicc_ctx *) handle;
+    jbyte *aid_java = (*env)->GetByteArrayElements(env, new_aid, NULL);
+    uint32_t aid_len = (*env)->GetArrayLength(env, new_aid);
+    uint8_t *aid_c = calloc(aid_len, sizeof(uint8_t));
+    memcpy(aid_c, aid_java, aid_len);
+    (*env)->ReleaseByteArrayElements(env, new_aid, aid_java, JNI_ABORT);
+    free((void *) ctx->aid);
+    ctx->aid = (const uint8_t *) aid_c;
+    ctx->aid_len = aid_len;
 }
 
 jstring toJString(JNIEnv *env, const char *pat) {
